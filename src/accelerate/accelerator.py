@@ -1600,6 +1600,14 @@ class Accelerator:
                 )
                 return result
 
+            # Skip TP preparation if the model was already TP-wrapped externally.
+            # `model._device_mesh` is set by transformers' `apply_tp_plan` (in `distribute_model`)
+            # whenever a TP/EP plan is applied at `from_pretrained` time. If it's set, the model
+            # already has hooks installed for its TP/EP mesh and `_prepare_tp` would double-wrap
+            # (and fail importing `ReplicateParallel` for EP, where non-plan params stay plain).
+            if getattr(model, "_device_mesh", None) is not None:
+                return result
+
         # Now we prepare the model
         device_mesh = self.torch_device_mesh
 
